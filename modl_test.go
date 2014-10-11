@@ -890,8 +890,8 @@ func TestQuoteTableNames(t *testing.T) {
 }
 
 type WithTime struct {
-	ID   int64
-	Time time.Time
+	ID        int64
+	TimeField time.Time //BUG(cryptix): renamed because time is a protected word in ql...
 }
 
 func TestWithTime(t *testing.T) {
@@ -915,7 +915,7 @@ func TestWithTime(t *testing.T) {
 	w2 := WithTime{}
 	dbmap.Get(&w2, w1.ID)
 
-	if w1.Time.UnixNano() != w2.Time.UnixNano() {
+	if w1.TimeField.UnixNano() != w2.TimeField.UnixNano() {
 		t.Errorf("%v != %v", w1, w2)
 	}
 }

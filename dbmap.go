@@ -178,9 +178,9 @@ func writeColumnSql(sql *bytes.Buffer, col *ColumnMap) {
 	}
 	sql.WriteString(fmt.Sprintf("%s %s", col.table.dbmap.Dialect.QuoteField(col.ColumnName), sqltype))
 	if col.isPK {
-		sql.WriteString(" not null")
+		sql.WriteString(col.table.dbmap.Dialect.NotNull())
 		if len(col.table.Keys) == 1 {
-			sql.WriteString(" primary key")
+			sql.WriteString(col.table.dbmap.Dialect.PrimaryKey())
 		}
 	}
 	if col.Unique {
@@ -358,7 +358,21 @@ func (m *DbMap) Exec(query string, args ...interface{}) (sql.Result, error) {
 	//	return nil, err
 	//}
 	//fmt.Println("Exec", query, args)
-	return m.Db.Exec(query, args...)
+	tx, err := m.Db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := tx.Exec(query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 // Begin starts a modl Transaction

@@ -58,6 +58,9 @@ type Dialect interface {
 
 	// DriverName returns the driver name for a dialect.
 	DriverName() string
+
+	NotNull() string
+	PrimaryKey() string
 }
 
 func standardInsertAutoIncr(e SqlExecutor, insertSql string, params ...interface{}) (int64, error) {
@@ -93,15 +96,33 @@ func (d QlDialect) DriverName() string {
 }
 
 // ToSqlType maps go types to sqlite types.
+// http://godoc.org/github.com/cznic/ql#hdr-Types
 func (d QlDialect) ToSqlType(col *ColumnMap) string {
 	switch col.gotype.Kind() {
 	case reflect.Bool:
-		return "integer"
-	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return "integer"
-	case reflect.Float64, reflect.Float32:
-		return "real"
+		return "bool"
+
+	case reflect.Int, reflect.Int64:
+		return "int"
+	case reflect.Int16:
+		return "int16"
+	case reflect.Int32:
+		return "int32"
+
+	case reflect.Uint, reflect.Uint64:
+		return "uint"
+	case reflect.Uint16:
+		return "uint16"
+	case reflect.Uint32:
+		return "uint32"
+
+	case reflect.Float32:
+		return "float32"
+	case reflect.Float64:
+		return "float64"
+
 	case reflect.Slice:
+		// BUG(cryptix): support mor elem kinds?
 		if col.gotype.Elem().Kind() == reflect.Uint8 {
 			return "blob"
 		}
@@ -109,19 +130,18 @@ func (d QlDialect) ToSqlType(col *ColumnMap) string {
 
 	switch col.gotype.Name() {
 	case "NullableInt64":
-		return "integer"
+		return "int"
 	case "NullableFloat64":
-		return "real"
+		return "float64"
 	case "NullableBool":
-		return "integer"
+		return "bool"
 	case "NullableBytes":
 		return "blob"
 	case "Time", "NullTime":
-		return "datetime"
+		return "time"
 	}
 
-	// sqlite ignores maxsize, so we will do that here too
-	return fmt.Sprintf("text")
+	return "string"
 }
 
 // AutoIncrStr returns autoincrement clause for sqlite.
@@ -160,7 +180,7 @@ func (d QlDialect) InsertAutoIncrAny(e SqlExecutor, insertSql string, dest inter
 
 // QuoteField quotes f with "" for sqlite
 func (d QlDialect) QuoteField(f string) string {
-	return `"` + f + `"`
+	return f
 }
 
 // TruncateClause returns the truncate clause for sqlite.  There is no TRUNCATE
@@ -173,7 +193,15 @@ func (d QlDialect) TruncateClause() string {
 // RestartIdentityClause restarts the sqlite_sequence for the provided table.
 // It is executed by TruncateTable as a separate query.
 func (d QlDialect) RestartIdentityClause(table string) string {
-	return "; DELETE FROM sqlite_sequence WHERE name='" + table + "'"
+	return "dunno"
+}
+
+func (d QlDialect) NotNull() string {
+	return ""
+}
+
+func (d QlDialect) PrimaryKey() string {
+	return ""
 }
 
 // -- sqlite3
@@ -270,6 +298,14 @@ func (d SqliteDialect) TruncateClause() string {
 // It is executed by TruncateTable as a separate query.
 func (d SqliteDialect) RestartIdentityClause(table string) string {
 	return "; DELETE FROM sqlite_sequence WHERE name='" + table + "'"
+}
+
+func (d SqliteDialect) NotNull() string {
+	return " not null"
+}
+
+func (d SqliteDialect) PrimaryKey() string {
+	return " primary key"
 }
 
 // -- PostgreSQL
@@ -392,6 +428,14 @@ func (d PostgresDialect) RestartIdentityClause(table string) string {
 	return "restart identity"
 }
 
+func (d PostgresDialect) NotNull() string {
+	return " not null"
+}
+
+func (d PostgresDialect) PrimaryKey() string {
+	return " primary key"
+}
+
 // -- MySQL
 
 // MySQLDialect is an implementation of Dialect for MySQL databases.
@@ -485,6 +529,14 @@ func (d MySQLDialect) InsertAutoIncrAny(e SqlExecutor, insertSql string, dest in
 // QuoteField quotes f using ``.
 func (d MySQLDialect) QuoteField(f string) string {
 	return "`" + f + "`"
+}
+
+func (d MySQLDialect) NotNull() string {
+	return " not null"
+}
+
+func (d MySQLDialect) PrimaryKey() string {
+	return " primary key"
 }
 
 // FIXME: use sqlx's rebind, which was written after it had been created for modl
