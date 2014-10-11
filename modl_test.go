@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/cznic/ql/driver"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -960,6 +961,8 @@ func dialectAndDriver() (Dialect, string) {
 		return PostgresDialect{}, "postgres"
 	case "sqlite":
 		return SqliteDialect{}, "sqlite3"
+	case "ql":
+		return QlDialect{}, "ql"
 	}
 	panic("MODL_TEST_DIALECT env variable is not set or is invalid. Please see README.md")
 }

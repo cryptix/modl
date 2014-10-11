@@ -80,6 +80,102 @@ func standardAutoIncrAny(e SqlExecutor, insertSql string, dest interface{}, para
 	return fmt.Errorf("No auto-incr value returned for insert: `%s` error: %s", insertSql, rows.Err())
 }
 
+// -- ql
+
+// QlDialect implements the Dialect interface for cznic/ql
+type QlDialect struct {
+	suffix string
+}
+
+// DriverName returns the driverName for sqlite.
+func (d QlDialect) DriverName() string {
+	return "ql"
+}
+
+// ToSqlType maps go types to sqlite types.
+func (d QlDialect) ToSqlType(col *ColumnMap) string {
+	switch col.gotype.Kind() {
+	case reflect.Bool:
+		return "integer"
+	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return "integer"
+	case reflect.Float64, reflect.Float32:
+		return "real"
+	case reflect.Slice:
+		if col.gotype.Elem().Kind() == reflect.Uint8 {
+			return "blob"
+		}
+	}
+
+	switch col.gotype.Name() {
+	case "NullableInt64":
+		return "integer"
+	case "NullableFloat64":
+		return "real"
+	case "NullableBool":
+		return "integer"
+	case "NullableBytes":
+		return "blob"
+	case "Time", "NullTime":
+		return "datetime"
+	}
+
+	// sqlite ignores maxsize, so we will do that here too
+	return fmt.Sprintf("text")
+}
+
+// AutoIncrStr returns autoincrement clause for sqlite.
+func (d QlDialect) AutoIncrStr() string {
+	return ""
+}
+
+// AutoIncrBindValue returns the bind value for auto incr fields in sqlite.
+func (d QlDialect) AutoIncrBindValue() string {
+	return "null"
+}
+
+// AutoIncrInsertSuffix returns the auto incr insert suffix for sqlite.
+func (d QlDialect) AutoIncrInsertSuffix(col *ColumnMap) string {
+	return ""
+}
+
+// CreateTableSuffix returns d.suffix
+func (d QlDialect) CreateTableSuffix() string {
+	return d.suffix
+}
+
+// BindVar returns "?", the simpler of the sqlite bindvars.
+func (d QlDialect) BindVar(i int) string {
+	return "?"
+}
+
+// InsertAutoIncr runs the standard
+func (d QlDialect) InsertAutoIncr(e SqlExecutor, insertSql string, params ...interface{}) (int64, error) {
+	return standardInsertAutoIncr(e, insertSql, params...)
+}
+
+func (d QlDialect) InsertAutoIncrAny(e SqlExecutor, insertSql string, dest interface{}, params ...interface{}) error {
+	return standardAutoIncrAny(e, insertSql, dest, params...)
+}
+
+// QuoteField quotes f with "" for sqlite
+func (d QlDialect) QuoteField(f string) string {
+	return `"` + f + `"`
+}
+
+// TruncateClause returns the truncate clause for sqlite.  There is no TRUNCATE
+// statement in sqlite3, but DELETE FROM uses a truncate optimization:
+// http://www.sqlite.org/lang_delete.html
+func (d QlDialect) TruncateClause() string {
+	return "delete from"
+}
+
+// RestartIdentityClause restarts the sqlite_sequence for the provided table.
+// It is executed by TruncateTable as a separate query.
+func (d QlDialect) RestartIdentityClause(table string) string {
+	return "; DELETE FROM sqlite_sequence WHERE name='" + table + "'"
+}
+
 // -- sqlite3
 
 // SqliteDialect implements the Dialect interface for Sqlite3.

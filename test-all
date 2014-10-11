@@ -67,3 +67,15 @@ else
     fi
 fi
 
+if [ -n "$MODL_QL_DSN" ]; then
+    export MODL_TEST_DSN="$MODL_QL_DSN"
+    export MODL_TEST_DIALECT="ql"
+    echo "Testing QL"
+    go test $@
+    exit_on_error $?
+else
+    echo "Skipping QL, \$MODL_QL_DSN=$MODL_QL_DSN"
+    if [ -n "$MODL_FAIL_ON_SKIP" ]; then
+        exit -1
+    fi
+fi
